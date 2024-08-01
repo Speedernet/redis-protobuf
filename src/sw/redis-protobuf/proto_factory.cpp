@@ -57,6 +57,7 @@ ProtoFactory::ProtoFactory(const std::string &proto_dir) :
                             _importer(&_source_tree, &_error_collector) {
     _source_tree.MapPath("", _proto_dir);
 
+    _importer.pool()->AddCheckpoint();
     _load_protos(_proto_dir);
 
     _async_loader = std::thread([this]() { this->_async_load(); });
@@ -108,19 +109,18 @@ const gp::Descriptor* ProtoFactory::descriptor(const std::string &type) {
         return iter->second;
     }
 
-    const auto *desc = _importer.pool()->FindMessageTypeByName(type);
-    if (desc != nullptr) {
-        _descriptor_cache.emplace(type, desc);
-    }
-
-    return desc;
+    return nullptr;
 }
 
-void ProtoFactory::load(const std::string &filename, const std::string &content) {
+void ProtoFactory::load(const std::string &filename, const std::string &content, bool replace) {
     {
         std::lock_guard<std::mutex> lock(_mtx);
 
-        _tasks[filename] = content;
+        ProtoFactory::LoadTask task;
+        task.content = content;
+        task.replace = replace;
+
+        _tasks[filename] = task;
     }
 
     _cv.notify_one();
@@ -139,6 +139,10 @@ std::unordered_map<std::string, std::string> ProtoFactory::last_loaded() {
 
 void ProtoFactory::_load_protos(const std::string &proto_dir) {
     auto files = io::list_dir(proto_dir);
+
+    _importer.pool()->RollbackToLastCheckpoint();
+    _importer.pool()->AddCheckpoint();
+
     for (const auto &file : files) {
         if (!io::is_regular(file) || io::extension(file) != "proto") {
             continue;
@@ -162,6 +166,11 @@ void ProtoFactory::_load(const std::string &file) {
         throw Error("failed to load " + file + "\n" + _error_collector.last_errors());
     }
 
+    for (auto idx = 0; idx != desc->message_type_count(); ++idx) {
+        auto *msg = desc->message_type(idx);
+        _descriptor_cache[msg->full_name()] = msg;
+    }
+
     _loaded_files.insert(file);
 }
 
@@ -180,7 +189,7 @@ std::string ProtoFactory::_canonicalize_path(std::string proto_dir) const {
 
 void ProtoFactory::_async_load() {
     while (!_stop_loader) {
-        std::unordered_map<std::string, std::string> tasks;
+        std::unordered_map<std::string, ProtoFactory::LoadTask> tasks;
         {
             std::unique_lock<std::mutex> lock(_mtx);
             _cv.wait(lock, [this]() { return this->_stop_loader || !(this->_tasks).empty(); });
@@ -191,9 +200,10 @@ void ProtoFactory::_async_load() {
         std::unordered_map<std::string, std::string> status;
         for (const auto &task : tasks) {
             const auto &filename = task.first;
-            const auto &content = task.second;
+            const auto &content = task.second.content;
+            const auto replace = task.second.replace;
             try {
-                _load(filename, content);
+                _load(filename, content, replace);
 
                 status[filename] = "OK";
             } catch (const Error &err) {
@@ -211,16 +221,18 @@ void ProtoFactory::_async_load() {
     }
 }
 
-void ProtoFactory::_load(const std::string &filename, const std::string &content) {
-    auto iter = _loaded_files.find(filename);
-    if (iter != _loaded_files.end()) {
-        throw Error("already imported");
+void ProtoFactory::_load(const std::string &filename, const std::string &content, bool replace) {
+    if (!replace) {
+        auto iter = _loaded_files.find(filename);
+        if (iter != _loaded_files.end()) {
+            throw Error("already imported");
+        }
     }
 
     _dump_to_disk(filename, content);
 
     try {
-        _load(filename);
+        _load_protos(_proto_dir);
     } catch (const Error &) {
         io::remove_file(_absolute_path(filename));
         throw;

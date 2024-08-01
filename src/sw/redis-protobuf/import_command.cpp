@@ -33,7 +33,7 @@ int ImportCommand::run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         auto args = _parse_args(argv, argc);
 
         auto &m= RedisProtobuf::instance();
-        m.proto_factory()->load(args.filename, args.content);
+        m.proto_factory()->load(args.filename, args.content, args.opt == Args::Opt::REPLACE);
 
         RedisModule_ReplicateVerbatim(ctx);
 
@@ -52,15 +52,43 @@ int ImportCommand::run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 auto ImportCommand::_parse_args(RedisModuleString **argv, int argc) const -> Args {
     assert(argv != nullptr);
 
-    if (argc != 3) {
+    if (argc < 3) {
         throw WrongArityError();
     }
 
     Args args;
-    args.filename = util::sv_to_string(argv[1]);
-    args.content = util::sv_to_string(argv[2]);
+
+    auto pos = _parse_opts(argv, argc, args);
+    if (pos + 2 != argc) {
+        throw WrongArityError();
+    }
+
+    args.filename = util::sv_to_string(argv[pos]);
+    args.content = util::sv_to_string(argv[pos + 1]);
 
     return args;
+}
+
+int ImportCommand::_parse_opts(RedisModuleString **argv, int argc, Args &args) const {
+    auto idx = 1;
+    while (idx < argc) {
+        auto opt = StringView(argv[idx]);
+
+        if (util::str_case_equal(opt, "--REPLACE")) {
+            if (args.opt != Args::Opt::NONE) {
+                throw Error("syntax error");
+            }
+
+            args.opt = Args::Opt::REPLACE;
+        } else {
+            // Finish parsing options.
+            break;
+        }
+
+        ++idx;
+    }
+
+    return idx;
 }
 
 }

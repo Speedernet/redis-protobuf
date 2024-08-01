@@ -35,7 +35,7 @@ void ImportTest::_run(sw::redis::Redis &r) {
     KeyDeleter deleter(r, key);
 
     std::string name{"test_import.proto"};
-    auto proto = R"(
+    auto proto1 = R"(
 syntax = "proto3";
 package sw.redis.pb;
 message Msg {
@@ -43,7 +43,7 @@ message Msg {
     string s = 2;
 }
     )";
-    r.command<void>("PB.IMPORT", name, proto);
+    r.command<void>("PB.IMPORT", name, proto1);
 
     // Ensure proto has been loaded
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -55,6 +55,37 @@ message Msg {
     REDIS_ASSERT(r.command<long long>("PB.SET", key, "sw.redis.pb.Msg", "/i", 123) &&
             r.command<long long>("PB.GET", key, "sw.redis.pb.Msg", "/i") == 123,
         "failed to test pb.import command");
+
+    auto proto2 = R"(
+syntax = "proto3";
+package sw.redis.pb;
+message Msg {
+    bool b = 1;
+    string s = 2;
+}
+    )";
+
+    r.command<void>("PB.IMPORT", name, proto2);
+
+    // Ensure proto has been loaded
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    auto res = r.command<std::unordered_map<std::string, std::string>>("PB.LASTIMPORT");
+    REDIS_ASSERT(res.size() == 1 && res[name] == "ERR already imported",
+            "failed to test pb.import command");
+
+    r.command<void>("PB.IMPORT", name, proto2);
+
+    // Ensure proto has been loaded
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    auto res = r.command<std::unordered_map<std::string, std::string>>("PB.LASTIMPORT");
+    REDIS_ASSERT(res.size() == 1 && res[name] == "OK",
+            "failed to test pb.import command");
+
+    REDIS_ASSERT(r.command<long long>("PB.SET", key, "sw.redis.pb.Msg", "/b", true) &&
+        r.command<long long>("PB.GET", key, "sw.redis.pb.Msg", "/b") == 1,
+    "failed to test pb.import command");
 }
 
 }

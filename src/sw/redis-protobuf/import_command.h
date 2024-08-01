@@ -30,7 +30,7 @@ namespace redis {
 
 namespace pb {
 
-// command: PB.IMPORT file-path content
+// command: PB.IMPORT [--REPLACE] file-path content
 // return:  OK status reply.
 // error:   If failing to import, return an error reply.
 class ImportCommand {
@@ -41,9 +41,19 @@ private:
     struct Args {
         std::string filename;
         std::string content;
+
+        enum class Opt {
+            REPLACE = 0,
+            NONE
+        };
+
+        Opt opt = Opt::NONE;
     };
 
     Args _parse_args(RedisModuleString **argv, int argc) const;
+
+    // Return the position of the first non-option argument.
+    int _parse_opts(RedisModuleString **argv, int argc, Args &args) const;
 };
 
 }

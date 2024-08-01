@@ -32,6 +32,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     target_link_libraries(${SHARED_LIB} z)
 else()
     target_link_libraries(${SHARED_LIB} -Wl,--whole-archive ${PROTOBUF_LIB} -Wl,--no-whole-archive)
+    target_link_libraries(${SHARED_LIB} z)
 endif()
 
 set_target_properties(${SHARED_LIB} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})

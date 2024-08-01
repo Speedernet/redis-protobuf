@@ -90,7 +90,7 @@ public:
 
     const gp::Descriptor* descriptor(const std::string &type);
 
-    void load(const std::string &file, const std::string &content);
+    void load(const std::string &file, const std::string &content, bool replace);
 
     std::unordered_map<std::string, std::string> last_loaded();
 
@@ -99,7 +99,7 @@ private:
 
     void _load(const std::string &file);
 
-    void _load(const std::string &filename, const std::string &content);
+    void _load(const std::string &filename, const std::string &content, bool replace);
 
     std::string _canonicalize_path(std::string proto_dir) const;
 
@@ -128,8 +128,13 @@ private:
 
     std::condition_variable _cv;
 
-    // map<file, content>
-    std::unordered_map<std::string, std::string> _tasks;
+    struct LoadTask {
+        std::string content;
+        bool replace;
+    };
+
+    // map<file, load task>
+    std::unordered_map<std::string, LoadTask> _tasks;
 
     // map<file, load status>
     std::unordered_map<std::string, std::string> _last_loaded_files;

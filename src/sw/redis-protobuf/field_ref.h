@@ -352,10 +352,8 @@ private:
             const gp::FieldDescriptor *field_desc,
             const gp::MapKey &key) const {
         // The following is hacking, hacking, and hacking!!!
-        const auto *reflection =
-            static_cast<const gp::internal::GeneratedMessageReflection*>(msg->GetReflection());
-        const auto &map_base = reflection->GetRaw<gp::internal::MapFieldBase>(*msg, field_desc);
-        const auto &dynamic_map = static_cast<const gp::internal::DynamicMapField&>(map_base);
+        const auto map_base = msg->GetReflection()->GetMapData(*msg, field_desc);
+        const auto &dynamic_map = static_cast<const gp::internal::DynamicMapField&>(*map_base);
         const auto &m = dynamic_map.GetMap();
         auto iter = m.find(key);
         if (iter == m.end()) {
@@ -369,9 +367,7 @@ private:
             const gp::FieldDescriptor *field_desc,
             const gp::MapKey &key) {
         // The following is hacking, hacking, and hacking!!!
-        const auto *reflection =
-            static_cast<const gp::internal::GeneratedMessageReflection*>(msg->GetReflection());
-        auto *map_base = reflection->MutableRaw<gp::internal::MapFieldBase>(msg, field_desc);
+        auto *map_base = msg->GetReflection()->MutableMapData(msg, field_desc);
         auto *dynamic_map = static_cast<gp::internal::DynamicMapField*>(map_base);
 
         // Ensure the value is initialized.
@@ -545,10 +541,8 @@ auto FieldRef<Msg>::get_map_range() const ->
     assert(is_map());
 
     // The following is hacking, hacking, and hacking!!!
-    const auto *reflection =
-        static_cast<const gp::internal::GeneratedMessageReflection*>(_msg->GetReflection());
-    const auto &map_base = reflection->GetRaw<gp::internal::MapFieldBase>(*_msg, _field_desc);
-    const auto &dynamic_map = static_cast<const gp::internal::DynamicMapField&>(map_base);
+    const auto map_base = _msg->GetReflection()->GetMapData(*_msg, _field_desc);
+    const auto &dynamic_map = static_cast<const gp::internal::DynamicMapField&>(*map_base);
     const auto &m = dynamic_map.GetMap();
 
     return {m.begin(), m.end()};
