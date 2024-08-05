@@ -30,9 +30,17 @@ namespace redis {
 
 namespace pb {
 
-// command: PB.IMPORT [--REPLACE] file-path content
+// command: PB.IMPORT ADD [--REPLACE] file-path content
 // return:  OK status reply.
 // error:   If failing to import, return an error reply.
+//
+// command: PB.IMPORT DELETE file-path
+// return:  OK status reply.
+// error:   If failing to delete, return an error reply.
+//
+// command: PB.IMPORT RELOAD
+// return:  OK status reply.
+// error:   If failing to reload, return an error reply.
 class ImportCommand {
 public:
     int run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;
@@ -42,11 +50,19 @@ private:
         std::string filename;
         std::string content;
 
+        enum class Cmd {
+            ADD = 0,
+            DELETE,
+            RELOAD,
+            NONE
+        };
+
         enum class Opt {
             REPLACE = 0,
             NONE
         };
 
+        Cmd cmd = Cmd::NONE;
         Opt opt = Opt::NONE;
     };
 

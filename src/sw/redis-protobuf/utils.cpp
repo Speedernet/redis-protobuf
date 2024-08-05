@@ -208,6 +208,25 @@ void remove_file(const std::string &path) {
     std::remove(path.data());
 }
 
+std::string dirname(const std::string &path) {
+    auto pos = path.rfind("/");
+    if (pos == std::string::npos) return {};
+
+    return path.substr(0, pos);
+}
+
+void create_dirs(const std::string &path, const unsigned int from) {
+    auto pos = path.find("/", from);
+    auto dir = path.substr(0, pos);
+    struct stat buffer;
+
+    if (!dir.empty() && stat(dir.c_str(), &buffer) && mkdir(dir.c_str(), 0755)) {
+        throw Error("failed to create directory: " + dir);
+    }
+
+    if (pos != std::string::npos) create_dirs(path, pos + 1);
+}
+
 }
 
 }

@@ -157,6 +157,10 @@ std::string extension(const std::string &file);
 
 void remove_file(const std::string &path);
 
+std::string dirname(const std::string &path);
+
+void create_dirs(const std::string &path, const unsigned int from);
+
 }
 
 }

@@ -43,18 +43,6 @@ message Msg {
     string s = 2;
 }
     )";
-    r.command<void>("PB.IMPORT", name, proto1);
-
-    // Ensure proto has been loaded
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-
-    auto res = r.command<std::unordered_map<std::string, std::string>>("PB.LASTIMPORT");
-    REDIS_ASSERT(res.size() == 1 && res[name] == "OK",
-            "failed to test pb.import command");
-
-    REDIS_ASSERT(r.command<long long>("PB.SET", key, "sw.redis.pb.Msg", "/i", 123) &&
-            r.command<long long>("PB.GET", key, "sw.redis.pb.Msg", "/i") == 123,
-        "failed to test pb.import command");
 
     auto proto2 = R"(
 syntax = "proto3";
@@ -65,27 +53,37 @@ message Msg {
 }
     )";
 
-    r.command<void>("PB.IMPORT", name, proto2);
+    REDIS_ASSERT(r.command<std::string>("PB.IMPORT", "ADD", name, proto1) == "OK",
+        "failed to test pb.import command");
 
-    // Ensure proto has been loaded
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    REDIS_ASSERT(r.command<std::string>("PB.IMPORT", "RELOAD") == "OK",
+        "failed to test pb.import command");
 
-    auto res = r.command<std::unordered_map<std::string, std::string>>("PB.LASTIMPORT");
-    REDIS_ASSERT(res.size() == 1 && res[name] == "ERR already imported",
-            "failed to test pb.import command");
+    REDIS_ASSERT(r.command<long long>("PB.SET", key, "sw.redis.pb.Msg", "/i", 123) &&
+            r.command<long long>("PB.GET", key, "sw.redis.pb.Msg", "/i") == 123,
+        "failed to test pb.import command");
 
-    r.command<void>("PB.IMPORT", name, proto2);
+    REDIS_ASSERT(r.command<std::string>("PB.IMPORT", "ADD", "--RELOAD", name, proto2) == "OK",
+        "failed to test pb.import command");
 
-    // Ensure proto has been loaded
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-
-    auto res = r.command<std::unordered_map<std::string, std::string>>("PB.LASTIMPORT");
-    REDIS_ASSERT(res.size() == 1 && res[name] == "OK",
-            "failed to test pb.import command");
+    REDIS_ASSERT(r.command<std::string>("PB.IMPORT", "RELOAD") == "OK",
+        "failed to test pb.import command");
 
     REDIS_ASSERT(r.command<long long>("PB.SET", key, "sw.redis.pb.Msg", "/b", true) &&
-        r.command<long long>("PB.GET", key, "sw.redis.pb.Msg", "/b") == 1,
-    "failed to test pb.import command");
+            r.command<long long>("PB.GET", key, "sw.redis.pb.Msg", "/b") == 1,
+        "failed to test pb.import command");
+
+    REDIS_ASSERT(r.command<long long>("PB.DEL", key, "sw.redis.pb.Msg") == 1,
+        "failed to test pb.import command");
+
+    REDIS_ASSERT(r.command<std::string>("PB.IMPORT", "DELETE", name) == "OK",
+        "failed to test pb.import command");
+
+    REDIS_ASSERT(r.command<std::string>("PB.IMPORT", "RELOAD") == "OK",
+        "failed to test pb.import command");
+
+    REDIS_ASSERT(r.command<sw::redis::OptionalString>("PB.SCHEMA",
+        "failed to test pb.import command");
 }
 
 }

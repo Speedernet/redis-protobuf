@@ -1921,6 +1921,10 @@ void DescriptorPool::AddCheckpoint() const {
     tables_->AddCheckpoint();
 }
 
+void DescriptorPool::ClearLastCheckpoint() const {
+    tables_->ClearLastCheckpoint();
+}
+
 void DescriptorPool::RollbackToLastCheckpoint() const {
     tables_->RollbackToLastCheckpoint();
 }

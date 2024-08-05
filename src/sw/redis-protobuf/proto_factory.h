@@ -18,11 +18,6 @@
 #define SEWENEW_REDISPROTOBUF_PROTO_FACTORY_H
 
 #include <string>
-#include <atomic>
-#include <mutex>
-#include <shared_mutex>
-#include <thread>
-#include <condition_variable>
 #include <unordered_map>
 #include <unordered_set>
 #include <google/protobuf/message.h>
@@ -90,22 +85,18 @@ public:
 
     const gp::Descriptor* descriptor(const std::string &type);
 
-    void load(const std::string &file, const std::string &content, bool replace);
+    void add_import(const std::string &filename, const std::string &content, bool replace);
 
-    std::unordered_map<std::string, std::string> last_loaded();
+    void delete_import(const std::string &filename);
+
+    void reload_imports();
 
 private:
     void _load_protos(const std::string &proto_dir);
 
     void _load(const std::string &file);
 
-    void _load(const std::string &filename, const std::string &content, bool replace);
-
     std::string _canonicalize_path(std::string proto_dir) const;
-
-    void _async_load();
-
-    void _dump_to_disk(const std::string &filename, const std::string &content) const;
 
     std::string _absolute_path(const std::string &path) const;
 
@@ -123,25 +114,6 @@ private:
     std::unordered_map<std::string, const gp::Descriptor*> _descriptor_cache;
 
     std::unordered_set<std::string> _loaded_files;
-
-    std::mutex _mtx;
-
-    std::condition_variable _cv;
-
-    struct LoadTask {
-        std::string content;
-        bool replace;
-    };
-
-    // map<file, load task>
-    std::unordered_map<std::string, LoadTask> _tasks;
-
-    // map<file, load status>
-    std::unordered_map<std::string, std::string> _last_loaded_files;
-
-    std::atomic<bool> _stop_loader{false};
-
-    std::thread _async_loader;
 };
 
 }

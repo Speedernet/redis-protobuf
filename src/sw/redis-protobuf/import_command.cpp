@@ -33,7 +33,13 @@ int ImportCommand::run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         auto args = _parse_args(argv, argc);
 
         auto &m= RedisProtobuf::instance();
-        m.proto_factory()->load(args.filename, args.content, args.opt == Args::Opt::REPLACE);
+        if (args.cmd == Args::Cmd::ADD) {
+            m.proto_factory()->add_import(args.filename, args.content, args.opt == Args::Opt::REPLACE);
+        } else if (args.cmd == Args::Cmd::DELETE) {
+            m.proto_factory()->delete_import(args.filename);
+        } else {
+            m.proto_factory()->reload_imports();
+        }
 
         RedisModule_ReplicateVerbatim(ctx);
 
@@ -52,19 +58,21 @@ int ImportCommand::run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 auto ImportCommand::_parse_args(RedisModuleString **argv, int argc) const -> Args {
     assert(argv != nullptr);
 
-    if (argc < 3) {
+    if (argc < 2 || argc > 5) {
         throw WrongArityError();
     }
 
     Args args;
 
     auto pos = _parse_opts(argv, argc, args);
-    if (pos + 2 != argc) {
+    if (args.cmd == Args::Cmd::ADD && pos + 2 == argc) {
+        args.filename = util::sv_to_string(argv[pos]);
+        args.content = util::sv_to_string(argv[pos + 1]);
+    } else if (args.cmd == Args::Cmd::DELETE && pos + 1 == argc) {
+        args.filename = util::sv_to_string(argv[pos]);
+    } else if (args.cmd != Args::Cmd::RELOAD || pos != argc) {
         throw WrongArityError();
     }
-
-    args.filename = util::sv_to_string(argv[pos]);
-    args.content = util::sv_to_string(argv[pos + 1]);
 
     return args;
 }
@@ -72,14 +80,32 @@ auto ImportCommand::_parse_args(RedisModuleString **argv, int argc) const -> Arg
 int ImportCommand::_parse_opts(RedisModuleString **argv, int argc, Args &args) const {
     auto idx = 1;
     while (idx < argc) {
-        auto opt = StringView(argv[idx]);
+        auto arg = StringView(argv[idx]);
 
-        if (util::str_case_equal(opt, "--REPLACE")) {
-            if (args.opt != Args::Opt::NONE) {
+        if (util::str_case_equal(arg, "ADD")) {
+            if (args.cmd != Args::Cmd::NONE) {
                 throw Error("syntax error");
             }
+            args.cmd = Args::Cmd::ADD;
 
+        } else if (util::str_case_equal(arg, "DELETE")) {
+            if (args.cmd != Args::Cmd::NONE) {
+                throw Error("syntax error");
+            }
+            args.cmd = Args::Cmd::DELETE;
+
+        } else if (util::str_case_equal(arg, "RELOAD")) {
+            if (args.cmd != Args::Cmd::NONE) {
+                throw Error("syntax error");
+            }
+            args.cmd = Args::Cmd::RELOAD;
+
+        } else if (util::str_case_equal(arg, "--REPLACE")) {
+            if (args.cmd != Args::Cmd::ADD || args.opt != Args::Opt::NONE) {
+                throw Error("syntax error");
+            }
             args.opt = Args::Opt::REPLACE;
+
         } else {
             // Finish parsing options.
             break;

@@ -58,17 +58,10 @@ ProtoFactory::ProtoFactory(const std::string &proto_dir) :
     _source_tree.MapPath("", _proto_dir);
 
     _importer.pool()->AddCheckpoint();
-    _load_protos(_proto_dir);
-
-    _async_loader = std::thread([this]() { this->_async_load(); });
 }
 
 ProtoFactory::~ProtoFactory() {
-    _stop_loader = true;
-    _cv.notify_one();
-    if (_async_loader.joinable()) {
-        _async_loader.join();
-    }
+    _importer.pool()->ClearLastCheckpoint();
 }
 
 MsgUPtr ProtoFactory::create(const std::string &type) {
@@ -109,40 +102,54 @@ const gp::Descriptor* ProtoFactory::descriptor(const std::string &type) {
         return iter->second;
     }
 
-    return nullptr;
-}
-
-void ProtoFactory::load(const std::string &filename, const std::string &content, bool replace) {
-    {
-        std::lock_guard<std::mutex> lock(_mtx);
-
-        ProtoFactory::LoadTask task;
-        task.content = content;
-        task.replace = replace;
-
-        _tasks[filename] = task;
+    const auto *desc = _importer.pool()->FindMessageTypeByName(type);
+    if (desc != nullptr) {
+        _descriptor_cache.emplace(type, desc);
     }
 
-    _cv.notify_one();
+    return desc;
 }
 
-std::unordered_map<std::string, std::string> ProtoFactory::last_loaded() {
-    std::unordered_map<std::string, std::string> last_loaded_files;
-    {
-        std::lock_guard<std::mutex> lock(_mtx);
-
-        _last_loaded_files.swap(last_loaded_files);
+void ProtoFactory::add_import(const std::string &filename, const std::string &content, bool replace) {
+    if (!replace) {
+        auto iter = _loaded_files.find(filename);
+        if (iter != _loaded_files.end()) {
+            throw Error("already imported");
+        }
     }
 
-    return last_loaded_files;
+    auto path = _absolute_path(filename);
+
+    io::create_dirs(io::dirname(path), 0);
+    std::ofstream file(path);
+    if (!file) {
+        throw Error("failed to open proto file for writing: " + path);
+    }
+
+    _loaded_files.insert(filename);
+    file << content;
+}
+
+void ProtoFactory::delete_import(const std::string &filename) {
+    auto iter = _loaded_files.find(filename);
+    if (iter == _loaded_files.end()) {
+        throw Error("unknown import");
+    }
+
+    io::remove_file(_absolute_path(filename));
+    _loaded_files.erase(iter);
+}
+
+void ProtoFactory::reload_imports() {
+    _importer.pool()->RollbackToLastCheckpoint();
+    _importer.pool()->AddCheckpoint();
+
+    _descriptor_cache.empty();
+    _load_protos(_proto_dir);
 }
 
 void ProtoFactory::_load_protos(const std::string &proto_dir) {
     auto files = io::list_dir(proto_dir);
-
-    _importer.pool()->RollbackToLastCheckpoint();
-    _importer.pool()->AddCheckpoint();
-
     for (const auto &file : files) {
         if (!io::is_regular(file) || io::extension(file) != "proto") {
             continue;
@@ -165,13 +172,6 @@ void ProtoFactory::_load(const std::string &file) {
     if (desc == nullptr || _error_collector.has_error()) {
         throw Error("failed to load " + file + "\n" + _error_collector.last_errors());
     }
-
-    for (auto idx = 0; idx != desc->message_type_count(); ++idx) {
-        auto *msg = desc->message_type(idx);
-        _descriptor_cache[msg->full_name()] = msg;
-    }
-
-    _loaded_files.insert(file);
 }
 
 std::string ProtoFactory::_canonicalize_path(std::string proto_dir) const {
@@ -185,69 +185,6 @@ std::string ProtoFactory::_canonicalize_path(std::string proto_dir) const {
     }
 
     return proto_dir;
-}
-
-void ProtoFactory::_async_load() {
-    while (!_stop_loader) {
-        std::unordered_map<std::string, ProtoFactory::LoadTask> tasks;
-        {
-            std::unique_lock<std::mutex> lock(_mtx);
-            _cv.wait(lock, [this]() { return this->_stop_loader || !(this->_tasks).empty(); });
-
-            tasks.swap(_tasks);
-        }
-
-        std::unordered_map<std::string, std::string> status;
-        for (const auto &task : tasks) {
-            const auto &filename = task.first;
-            const auto &content = task.second.content;
-            const auto replace = task.second.replace;
-            try {
-                _load(filename, content, replace);
-
-                status[filename] = "OK";
-            } catch (const Error &err) {
-                status[filename] = std::string("ERR ") + err.what();
-            }
-        }
-
-        if (!status.empty()) {
-            std::lock_guard<std::mutex> lock(_mtx);
-
-            for (auto &&ele : status) {
-                _last_loaded_files[ele.first] = std::move(ele.second);
-            }
-        }
-    }
-}
-
-void ProtoFactory::_load(const std::string &filename, const std::string &content, bool replace) {
-    if (!replace) {
-        auto iter = _loaded_files.find(filename);
-        if (iter != _loaded_files.end()) {
-            throw Error("already imported");
-        }
-    }
-
-    _dump_to_disk(filename, content);
-
-    try {
-        _load_protos(_proto_dir);
-    } catch (const Error &) {
-        io::remove_file(_absolute_path(filename));
-        throw;
-    }
-}
-
-void ProtoFactory::_dump_to_disk(const std::string &filename, const std::string &content) const {
-    auto path = _absolute_path(filename);
-
-    std::ofstream file(path);
-    if (!file) {
-        throw Error("failed to open proto file for writing: " + path);
-    }
-
-    file << content;
 }
 
 std::string ProtoFactory::_absolute_path(const std::string &path) const {

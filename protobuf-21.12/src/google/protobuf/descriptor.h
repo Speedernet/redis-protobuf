@@ -1988,6 +1988,7 @@ class PROTOBUF_EXPORT DescriptorPool {
   void ClearUnusedImportTrackFiles();
 
   void AddCheckpoint() const;
+  void ClearLastCheckpoint() const;
   void RollbackToLastCheckpoint() const;
 
  private:
