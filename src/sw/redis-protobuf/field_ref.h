@@ -443,6 +443,8 @@ private:
 
     void _del_array_element();
 
+    void _del_map_element();
+
     Msg *_msg = nullptr;
 
     const gp::FieldDescriptor *_field_desc = nullptr;
@@ -862,9 +864,10 @@ template <typename Msg>
 void FieldRef<Msg>::del() {
     if (is_array_element()) {
         _del_array_element();
+    } else if (is_map_element()) {
+        _del_map_element();
     } else {
-        // TODO: support map
-        throw Error("can only delete array element");
+        throw Error("can only delete array or map element");
     }
 }
 
@@ -894,6 +897,17 @@ void FieldRef<Msg>::_del_array_element() {
     }
 
     reflection->RemoveLast(_msg, _field_desc);
+}
+
+template <typename Msg>
+void FieldRef<Msg>::_del_map_element() {
+    assert(is_map_element());
+
+    // The following is hacking, hacking, and hacking!!!
+    auto *map_base = _msg->GetReflection()->MutableMapData(_msg, _field_desc);
+    auto *dynamic_map = static_cast<gp::internal::DynamicMapField*>(map_base);
+
+    dynamic_map->DeleteMapValue(*_map_key);
 }
 
 }

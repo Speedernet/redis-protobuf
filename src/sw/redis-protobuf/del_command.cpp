@@ -87,8 +87,7 @@ DelCommand::Args DelCommand::_parse_args(RedisModuleString **argv, int argc) con
 void DelCommand::_del(gp::Message &msg, const Path &path) const {
     MutableFieldRef field(&msg, path);
 
-    if (!field.is_array_element()) {
-        // TODO: support map element
+    if (!field.is_array_element() && !field.is_map_element()) {
         throw Error("not an array or map");
     }
 

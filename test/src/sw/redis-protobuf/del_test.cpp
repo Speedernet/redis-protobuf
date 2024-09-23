@@ -37,8 +37,13 @@ void DelTest::_run(sw::redis::Redis &r) {
     REDIS_ASSERT(r.command<long long>("PB.DEL", key, "Msg", "/arr/0") == 1 &&
                 r.command<long long>("PB.LEN", key, "Msg", "/arr") == 1,
             "failed to test del array element");
+
+    REDIS_ASSERT(r.command<long long>("PB.DEL", key, "Msg", "/m/key") == 1 &&
+                r.command<long long>("PB.LEN", key, "Msg", "/m") == 1,
+            "failed to test del map element");
+
     /*
-    TODO: support delete whole array and whole map, and map element
+    // TODO: support delete whole array and whole map
     REDIS_ASSERT(r.command<long long>("PB.DEL", key, "Msg", "/arr") == 1 &&
                 r.command<long long>("PB.LEN", key, "Msg", "/arr") == 0,
             "failed to test del array");
