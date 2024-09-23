@@ -39,8 +39,7 @@ namespace pb {
 // error:   If failing to delete, return an error reply.
 //
 // command: PB.IMPORT RELOAD
-// return:  OK status reply.
-// error:   If failing to reload, return an error reply.
+// return:  Array reply of the status of loaded proto files.
 class ImportCommand {
 public:
     int run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) const;

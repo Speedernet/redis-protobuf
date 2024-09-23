@@ -140,16 +140,18 @@ void ProtoFactory::delete_import(const std::string &filename) {
     _loaded_files.erase(iter);
 }
 
-void ProtoFactory::reload_imports() {
+std::unordered_map<std::string, std::string> ProtoFactory::reload_imports() {
     _importer.pool()->RollbackToLastCheckpoint();
     _importer.pool()->AddCheckpoint();
 
     _descriptor_cache.empty();
-    _load_protos(_proto_dir);
+    return _load_protos(_proto_dir);
 }
 
-void ProtoFactory::_load_protos(const std::string &proto_dir) {
+std::unordered_map<std::string, std::string> ProtoFactory::_load_protos(const std::string &proto_dir) {
+    std::unordered_map<std::string, std::string> results;
     auto files = io::list_dir(proto_dir);
+
     for (const auto &file : files) {
         if (!io::is_regular(file) || io::extension(file) != "proto") {
             continue;
@@ -160,8 +162,16 @@ void ProtoFactory::_load_protos(const std::string &proto_dir) {
             continue;
         }
 
-        _load(file.substr(prefix_size));
+        auto name = file.substr(prefix_size);
+        try {
+            _load(name);
+            results[name] = "OK";
+        } catch (const Error &err) {
+            results[name] = std::string("ERR ") + err.what();
+        }
     }
+
+    return results;
 }
 
 void ProtoFactory::_load(const std::string &file) {

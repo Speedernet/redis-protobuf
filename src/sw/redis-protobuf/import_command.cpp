@@ -35,15 +35,27 @@ int ImportCommand::run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         auto &m= RedisProtobuf::instance();
         if (args.cmd == Args::Cmd::ADD) {
             m.proto_factory()->add_import(args.filename, args.content, args.opt == Args::Opt::REPLACE);
+
+            RedisModule_ReplicateVerbatim(ctx);
+            RedisModule_ReplyWithSimpleString(ctx, "OK");
         } else if (args.cmd == Args::Cmd::DELETE) {
             m.proto_factory()->delete_import(args.filename);
+
+            RedisModule_ReplicateVerbatim(ctx);
+            RedisModule_ReplyWithSimpleString(ctx, "OK");
         } else {
-            m.proto_factory()->reload_imports();
+            auto results = m.proto_factory()->reload_imports();
+
+            RedisModule_ReplyWithArray(ctx, results.size());
+            for (const auto &ele : results) {
+                const auto &filename = ele.first;
+                const auto &status = ele.second;
+
+                RedisModule_ReplyWithArray(ctx, 2);
+                RedisModule_ReplyWithStringBuffer(ctx, filename.data(), filename.size());
+                RedisModule_ReplyWithStringBuffer(ctx, status.data(), status.size());
+            }
         }
-
-        RedisModule_ReplicateVerbatim(ctx);
-
-        RedisModule_ReplyWithSimpleString(ctx, "OK");
 
         return REDISMODULE_OK;
     } catch (const WrongArityError &err) {

@@ -89,10 +89,10 @@ public:
 
     void delete_import(const std::string &filename);
 
-    void reload_imports();
+    std::unordered_map<std::string, std::string> reload_imports();
 
 private:
-    void _load_protos(const std::string &proto_dir);
+    std::unordered_map<std::string, std::string> _load_protos(const std::string &proto_dir);
 
     void _load(const std::string &file);
 

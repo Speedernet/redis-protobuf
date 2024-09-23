@@ -56,8 +56,9 @@ message Msg {
     REDIS_ASSERT(r.command<std::string>("PB.IMPORT", "ADD", name, proto1) == "OK",
         "failed to test pb.import command");
 
-    REDIS_ASSERT(r.command<std::string>("PB.IMPORT", "RELOAD") == "OK",
-        "failed to test pb.import command");
+    auto res1 = r.command<std::unordered_map<std::string, std::string>>("PB.IMPORT", "RELOAD");
+    REDIS_ASSERT(res.size() == 1 && res[name] == "OK",
+            "failed to test pb.import command");
 
     REDIS_ASSERT(r.command<long long>("PB.SET", key, "sw.redis.pb.Msg", "/i", 123) &&
             r.command<long long>("PB.GET", key, "sw.redis.pb.Msg", "/i") == 123,
@@ -69,6 +70,10 @@ message Msg {
     REDIS_ASSERT(r.command<std::string>("PB.IMPORT", "RELOAD") == "OK",
         "failed to test pb.import command");
 
+    auto res1 = r.command<std::unordered_map<std::string, std::string>>("PB.IMPORT", "RELOAD");
+    REDIS_ASSERT(res.size() == 1 && res[name] == "OK",
+            "failed to test pb.import command");
+
     REDIS_ASSERT(r.command<long long>("PB.SET", key, "sw.redis.pb.Msg", "/b", true) &&
             r.command<long long>("PB.GET", key, "sw.redis.pb.Msg", "/b") == 1,
         "failed to test pb.import command");
@@ -79,8 +84,9 @@ message Msg {
     REDIS_ASSERT(r.command<std::string>("PB.IMPORT", "DELETE", name) == "OK",
         "failed to test pb.import command");
 
-    REDIS_ASSERT(r.command<std::string>("PB.IMPORT", "RELOAD") == "OK",
-        "failed to test pb.import command");
+    auto res1 = r.command<std::unordered_map<std::string, std::string>>("PB.IMPORT", "RELOAD");
+    REDIS_ASSERT(res.size() == 0
+            "failed to test pb.import command");
 
     REDIS_ASSERT(r.command<sw::redis::OptionalString>("PB.SCHEMA",
         "failed to test pb.import command");
