@@ -77,19 +77,17 @@ public:
     ProtoFactory(ProtoFactory &&) = delete;
     ProtoFactory& operator=(ProtoFactory &&) = delete;
 
-    ~ProtoFactory();
-
     MsgUPtr create(const std::string &type);
 
     MsgUPtr create(const std::string &type, const StringView &sv);
 
     const gp::Descriptor* descriptor(const std::string &type);
 
-    void add_import(const std::string &filename, const std::string &content, bool replace);
+    void add_proto(const std::string &filename, const std::string &content, bool replace);
 
-    void delete_import(const std::string &filename);
+    void delete_proto(const std::string &filename);
 
-    std::unordered_map<std::string, std::string> reload_imports();
+    std::unordered_map<std::string, std::string> load_protos();
 
 private:
     std::unordered_map<std::string, std::string> _load_protos(const std::string &proto_dir);

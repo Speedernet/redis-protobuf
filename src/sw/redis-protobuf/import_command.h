@@ -38,7 +38,7 @@ namespace pb {
 // return:  OK status reply.
 // error:   If failing to delete, return an error reply.
 //
-// command: PB.IMPORT RELOAD
+// command: PB.IMPORT LOAD
 // return:  Array reply of the status of loaded proto files.
 class ImportCommand {
 public:
@@ -52,7 +52,7 @@ private:
         enum class Cmd {
             ADD = 0,
             DELETE,
-            RELOAD,
+            LOAD,
             NONE
         };
 

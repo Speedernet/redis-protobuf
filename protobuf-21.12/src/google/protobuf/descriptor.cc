@@ -1917,18 +1917,6 @@ void DescriptorPool::ClearUnusedImportTrackFiles() {
   unused_import_track_files_.clear();
 }
 
-void DescriptorPool::AddCheckpoint() const {
-    tables_->AddCheckpoint();
-}
-
-void DescriptorPool::ClearLastCheckpoint() const {
-    tables_->ClearLastCheckpoint();
-}
-
-void DescriptorPool::RollbackToLastCheckpoint() const {
-    tables_->RollbackToLastCheckpoint();
-}
-
 bool DescriptorPool::InternalIsFileLoaded(ConstStringParam filename) const {
   MutexLockMaybe lock(mutex_);
   return tables_->FindFile(filename) != nullptr;

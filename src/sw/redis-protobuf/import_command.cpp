@@ -34,17 +34,17 @@ int ImportCommand::run(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 
         auto &m= RedisProtobuf::instance();
         if (args.cmd == Args::Cmd::ADD) {
-            m.proto_factory()->add_import(args.filename, args.content, args.opt == Args::Opt::REPLACE);
+            m.proto_factory()->add_proto(args.filename, args.content, args.opt == Args::Opt::REPLACE);
 
             RedisModule_ReplicateVerbatim(ctx);
             RedisModule_ReplyWithSimpleString(ctx, "OK");
         } else if (args.cmd == Args::Cmd::DELETE) {
-            m.proto_factory()->delete_import(args.filename);
+            m.proto_factory()->delete_proto(args.filename);
 
             RedisModule_ReplicateVerbatim(ctx);
             RedisModule_ReplyWithSimpleString(ctx, "OK");
         } else {
-            auto results = m.proto_factory()->reload_imports();
+            auto results = m.proto_factory()->load_protos();
 
             RedisModule_ReplyWithArray(ctx, results.size());
             for (const auto &ele : results) {
@@ -82,7 +82,7 @@ auto ImportCommand::_parse_args(RedisModuleString **argv, int argc) const -> Arg
         args.content = util::sv_to_string(argv[pos + 1]);
     } else if (args.cmd == Args::Cmd::DELETE && pos + 1 == argc) {
         args.filename = util::sv_to_string(argv[pos]);
-    } else if (args.cmd != Args::Cmd::RELOAD || pos != argc) {
+    } else if (args.cmd != Args::Cmd::LOAD || pos != argc) {
         throw WrongArityError();
     }
 
@@ -106,11 +106,11 @@ int ImportCommand::_parse_opts(RedisModuleString **argv, int argc, Args &args) c
             }
             args.cmd = Args::Cmd::DELETE;
 
-        } else if (util::str_case_equal(arg, "RELOAD")) {
+        } else if (util::str_case_equal(arg, "LOAD")) {
             if (args.cmd != Args::Cmd::NONE) {
                 throw Error("syntax error");
             }
-            args.cmd = Args::Cmd::RELOAD;
+            args.cmd = Args::Cmd::LOAD;
 
         } else if (util::str_case_equal(arg, "--REPLACE")) {
             if (args.cmd != Args::Cmd::ADD || args.opt != Args::Opt::NONE) {

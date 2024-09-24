@@ -1987,10 +1987,6 @@ class PROTOBUF_EXPORT DescriptorPool {
                                 bool is_error = false);
   void ClearUnusedImportTrackFiles();
 
-  void AddCheckpoint() const;
-  void ClearLastCheckpoint() const;
-  void RollbackToLastCheckpoint() const;
-
  private:
   friend class Descriptor;
   friend class internal::LazyDescriptor;

@@ -57,11 +57,7 @@ ProtoFactory::ProtoFactory(const std::string &proto_dir) :
                             _importer(&_source_tree, &_error_collector) {
     _source_tree.MapPath("", _proto_dir);
 
-    _importer.pool()->AddCheckpoint();
-}
-
-ProtoFactory::~ProtoFactory() {
-    _importer.pool()->ClearLastCheckpoint();
+    _load_protos(_proto_dir);
 }
 
 MsgUPtr ProtoFactory::create(const std::string &type) {
@@ -110,7 +106,7 @@ const gp::Descriptor* ProtoFactory::descriptor(const std::string &type) {
     return desc;
 }
 
-void ProtoFactory::add_import(const std::string &filename, const std::string &content, bool replace) {
+void ProtoFactory::add_proto(const std::string &filename, const std::string &content, bool replace) {
     if (!replace) {
         auto iter = _loaded_files.find(filename);
         if (iter != _loaded_files.end()) {
@@ -130,7 +126,7 @@ void ProtoFactory::add_import(const std::string &filename, const std::string &co
     file << content;
 }
 
-void ProtoFactory::delete_import(const std::string &filename) {
+void ProtoFactory::delete_proto(const std::string &filename) {
     auto iter = _loaded_files.find(filename);
     if (iter == _loaded_files.end()) {
         throw Error("unknown import");
@@ -140,11 +136,7 @@ void ProtoFactory::delete_import(const std::string &filename) {
     _loaded_files.erase(iter);
 }
 
-std::unordered_map<std::string, std::string> ProtoFactory::reload_imports() {
-    _importer.pool()->RollbackToLastCheckpoint();
-    _importer.pool()->AddCheckpoint();
-
-    _descriptor_cache.empty();
+std::unordered_map<std::string, std::string> ProtoFactory::load_protos() {
     return _load_protos(_proto_dir);
 }
 
